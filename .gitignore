@@ -1,2 +1,8 @@
 /target/
 /artwork/
+
+*.o
+
+.DS_Store
+
+exemple
