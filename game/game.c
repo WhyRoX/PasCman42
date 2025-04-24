@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "utils_v3.h"
+#include "../utils_v3.h"
 
 #include "game.h"
 
@@ -82,10 +82,11 @@ int32_t id(uint32_t x, uint32_t y, enum Item item) {
 // position dans la carte.
 size_t position2index(struct Position pos) {
     return (size_t) (pos.y * WIDTH + pos.x);
+    
 }
-
-// Cette réinitialise un objet GameState ce qui permet de s'assurer
 // que toutes les valeurs soient correctement initialisées
+// Cette réinitialise un objet GameState ce qui permet assurer
+
 // (par exemple en mettant -1 partout dans le champ 'food').
 void reset_gamestate(struct GameState *state) {
     state->game_over = true;

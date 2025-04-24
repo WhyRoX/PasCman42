@@ -4,17 +4,17 @@
 #include <unistd.h>  // usleep
 #include <fcntl.h>
 
-#include "utils_v3.h"
+#include "../utils_v3.h"
 #include "pascman.h"
 #include "game.h"
 
 // ********************************************************************************
-// CE PROGRAMME VOUS EST FOURNI A TITRE D'EXEMPLE. IL VOUS PERMET DE COMPRENDRE
-// LA FACON D'INTERAGIR AVEC L'INTERFACE GRAPHIQUE DU JEU QUI VOUS EST FOURNIE.
-// CE PROGRAMME VOUS DONNE AUSSI UNE SERIE DE STRUCTURES ET DE FONCTIONS QUI 
-// SONT AUTANT D'INDICES POUVANT VOUS ORIENTER POUR BIEN DEMARRER VOTRE PROJET.
+// ! CE PROGRAMME VOUS EST FOURNI A TITRE D'EXEMPLE. IL VOUS PERMET DE COMPRENDRE
+// ? LA FACON D'INTERAGIR AVEC L'INTERFACE GRAPHIQUE DU JEU QUI VOUS EST FOURNIE.
+// TODO: CE PROGRAMME VOUS DONNE AUSSI UNE SERIE DE STRUCTURES ET DE FONCTIONS QUI
+// ? SONT AUTANT D'INDICES POUVANT VOUS ORIENTER POUR BIEN DEMARRER VOTRE PROJET.
 // ================================================================================
-// VOUS AVEZ PARFAITEMENT LE DROIT DE REUTILISER, ET D'ADAPTER LE CODE FOURNI
+// ! VOUS AVEZ PARFAITEMENT LE DROIT DE REUTILISER, ET D'ADAPTER LE CODE FOURNI
 // POUR L'INTEGRER A VOTRE PROJET SI VOUS JUGEZ QUE C'EST PERTINENT. NOUS 
 // ATTIRONS TOUTEFOIS VOTRE ATTENTION SUR LE FAIT QUE CE PROGRAMME N'EST PAS
 // MODULARISE ALORS QU'IL EST ATTENDU QUE VOTRE CODE SOIT CORRECTEMENT 
@@ -27,7 +27,6 @@ int main(int argc, char** argv) {
     FileDescriptor map  = sopen("./resources/map.txt", O_RDONLY, 0);
     load_map(map, sout, &state);
     sclose(map);
-
     // Dans cet exemple, nos deux joueurs vont simplement faire un
     // petit tour sur la carte, ce qui va créer une animation un
     // peu idiote mais qui devrait permettre aux étudiants de 
@@ -78,6 +77,6 @@ int main(int argc, char** argv) {
         process_user_command(&state, PLAYER1, LEFT, sout);
         usleep(500000);
     }
-
     return 0;
+
 }
