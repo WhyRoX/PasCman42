@@ -3,7 +3,6 @@
 #include <sys/fcntl.h>
 
 #include "game.h"
-#include "pascman.h"
 #include "utils_v3.h"
 
 // I set the BACKLOG to 2 because we only have two players
