@@ -37,15 +37,19 @@ int main(int argc, char *argv[]) {
     printf("Key pressed by player %d: %d\n", player_no, key_press);
 
     // lock semaphore
+    printf("Trying to lock semaphore");
     sem_down0(sem_id);
+    printf("Locked semaphore");
     // send the key press to the server
     if (process_user_command(state, player_it, key_press,
                              WRITE_PIPE_TO_BROADCAST_FD)) {
       printf("Fin du jeu !\n");
       // GAME FINISH
     }
+    printf("Trying to unlock semaphore");
     // unlock semaphore
     sem_up0(sem_id);
+    printf("Unlocked semaphore");
   }
   return EXIT_SUCCESS;
 }
