@@ -13,8 +13,20 @@
 
 // TODO: Change this to a more appropriate rwx
 #define PERM 0666
+#define TIMEOUT_SECONDS 5
+
+pid_t first_player_handler_pid = -1;
+
+void timeout_handler(int sig) {
+  printf("Temps écoulé ! Pas assez de joueurs.\n");
+  if (first_player_handler_pid != -1) {
+    skill(first_player_handler_pid, SIGTERM);
+  }
+}
 
 int main(int argc, char *argv[]) {
+  setpgrp();
+
   if (argv == NULL || argc != 3) {
     fprintf(stderr, "Usage: %s <port> <map>\n", argv[0]);
     return EXIT_FAILURE;
@@ -87,6 +99,17 @@ int main(int argc, char *argv[]) {
       continue;
     }
 
+    if (i==0) {
+      // Set the timeout handler
+      signal(SIGALRM, timeout_handler);
+      // Set the alarm to 5 seconds
+      alarm(TIMEOUT_SECONDS);
+    }
+    if (i==1) {
+      // Cancel the alarm
+      alarm(0);
+    }
+
     printf("Player %d connected\n", i + 1);
     load_map(map, player, state);
     // We need to set the cursor to the beginning of the file after reading the
@@ -117,6 +140,10 @@ int main(int argc, char *argv[]) {
       if (exec == -1) {
         perror("Failed to exec client_handler");
         exit(EXIT_FAILURE);
+      }
+    } else { 
+      if (i == 0) {
+        first_player_handler_pid = childId;
       }
     }
   }
