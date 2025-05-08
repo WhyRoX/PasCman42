@@ -110,7 +110,7 @@ int main(int argc, char *argv[]) {
       sclose(sockfd);
 
       // exec the client client_handler and replace this child process by
-      char player_no[8];
+      char player_no[12];
       // TODO: Sprintf is a stdlib function, can we use it ? We need to ask
       // teachers
       sprintf(player_no, "%d", i + 1);
