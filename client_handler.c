@@ -31,7 +31,7 @@ int main(int argc, char *argv[]) {
   printf("Yes I'm a client handler of the player %d!\n", player_no);
 
   // read the fd of the socket
-  int key_press;
+  enum Direction key_press;
   while (sread(PLAYER_SOCKET_FD, &key_press, sizeof(int)) > 0) {
     // read the key press
     printf("Key pressed by player %d: %d\n", player_no, key_press);
@@ -41,8 +41,10 @@ int main(int argc, char *argv[]) {
     // send the key press to the server
     if (process_user_command(state, player_it, key_press,
                              WRITE_PIPE_TO_BROADCAST_FD)) {
+      printf("Fin du jeu !\n");
       // GAME FINISH
     }
+    // unlock semaphore
     sem_up0(sem_id);
   }
   return EXIT_SUCCESS;

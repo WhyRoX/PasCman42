@@ -10,8 +10,6 @@
 #include "pascman.h"
 #include "pm_exec_paths.h"
 #include "utils_v3.h"
-// I set the BACKLOG to 2 because we only have two players
-#define PLAYER_MAX_COUNT 2
 
 // TODO: Change this to a more appropriate rwx
 #define PERM 0666
@@ -35,8 +33,9 @@ int main(int argc, char *argv[]) {
 
   /**
    * Create/init shm and sem
+   * TODO: SEM to 0 like in the diagram
    * */
-  int sem_id = sem_create(SEM_KEY, 1, PERM, 1);
+  int sem_id = sem_create(SEM_KEY, 1, PERM, 0);
   if (sem_id < 0) {
     perror("Failed to create semaphore");
     exit(EXIT_FAILURE);
@@ -71,12 +70,12 @@ int main(int argc, char *argv[]) {
   sbind(port, sockfd);
 
   // The BACKLOG is the maximum number of pending connections
-  slisten(sockfd, PLAYER_MAX_COUNT);
+  slisten(sockfd, NB_PLAYERS);
   printf("Server listening on port %d\n", port);
   printf("With map %s\n", mapPath);
   printf("Waiting for players...\n");
-  FileDescriptor players_fd[PLAYER_MAX_COUNT];
-  for (int i = 0; i < PLAYER_MAX_COUNT; i++) {
+  FileDescriptor players_fd[NB_PLAYERS];
+  for (int i = 0; i < NB_PLAYERS; i++) {
     printf("Waiting for player %d...\n", i + 1);
     FileDescriptor player = saccept(sockfd);
     int msg_type;
@@ -123,29 +122,24 @@ int main(int argc, char *argv[]) {
       }
     }
   }
+  // End of the loop, all players are connected
   int childId = sfork();
   if (childId == 0) {
     // Redirect stdout to the broadcaster
     sdup2(pipefd[0], WRITE_PIPE_TO_BROADCAST_FD);
-    for (int i = 0; i < PLAYER_MAX_COUNT; i++) {
+    for (int i = 0; i < NB_PLAYERS; i++) {
       sdup2(players_fd[i], PLAYERS_RANGE_FD + i);
       sclose(players_fd[i]);
     }
-    char *player_max = malloc(8);
-    if (player_max == NULL) {
-      perror("Failed to malloc player_max");
-      exit(EXIT_FAILURE);
-    }
-    sprintf(player_max, "%d", PLAYER_MAX_COUNT);
 
-    int exec =
-        sexecl(BROADCASTER_PATH, BROADCASTER_PATH, player_max, (char *)NULL);
+    int exec = sexecl(BROADCASTER_PATH, BROADCASTER_PATH, (char *)NULL);
     if (exec == -1) {
       perror("Failed to exec broadcaster");
       exit(EXIT_FAILURE);
     }
   }
 
+  // need to unlock ctrl c handling
   while (1) {
     // Wait for the child process to finish
     int wstatus;
