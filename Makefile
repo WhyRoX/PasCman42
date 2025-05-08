@@ -1,6 +1,6 @@
 CC=gcc
 
-CFLAGS=-std=c17 -pedantic -Wall -Wvla -Werror  -Wno-unused-variable -Wno-unused-but-set-variable -D_DEFAULT_SOURCE
+CFLAGS=-std=c17 -pedantic -Wall -Wvla -Werror  -Wno-unused-variable -Wno-unused-but-set-variable -D_DEFAULT_SOURCE -g
 
 all: exemple pas_server pas_client broadcaster client_handler
 
