@@ -35,7 +35,7 @@ int main(int argc, char *argv[]) {
    * Create/init shm and sem
    * TODO: SEM to 0 like in the diagram
    * */
-  int sem_id = sem_create(SEM_KEY, 1, PERM, 0);
+  int sem_id = sem_create(SEM_KEY, 1, PERM, 1);
   if (sem_id < 0) {
     perror("Failed to create semaphore");
     exit(EXIT_FAILURE);
