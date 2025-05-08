@@ -39,7 +39,7 @@ int main(int argc, char *argv[]) {
 
     // lock semaphore
     printf("Trying to lock semaphore\n");
-    sem_down0(sem_id);
+    sem_up0(sem_id);
     printf("Locked semaphore\n");
     // send the key press to the server
     if (process_user_command(state, player_it, key_press,

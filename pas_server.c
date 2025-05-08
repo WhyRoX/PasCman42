@@ -98,8 +98,6 @@ int main(int argc, char *argv[]) {
       exit(EXIT_FAILURE);
     }
 
-    send_registered(i + 1, player);
-
     players_fd[i] = player;
     // create a client_handler for the player in this loop
     int childId = sfork();
@@ -121,6 +119,10 @@ int main(int argc, char *argv[]) {
         exit(EXIT_FAILURE);
       }
     }
+  }
+  // send registration to players
+  for (int i = 0; i < NB_PLAYERS; i++) {
+    send_registered(i + 1, players_fd[i]);
   }
   // End of the loop, all players are connected
   int childId = sfork();

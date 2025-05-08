@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+void send_register(int fd);
 int main(int argc, char *argv[]) {
 
   /**
@@ -42,8 +43,7 @@ int main(int argc, char *argv[]) {
     printf("Redirected pipefd[1] to stdout...\n");
 
     sconnect(host, port, sockfd);
-    int msg_type = REGISTRATION;
-    swrite(sockfd, &msg_type, sizeof(int));
+    send_register(sockfd);
     printf("Connected to server %s on port %d\n", host, port);
 
     // Redirect stdin to the read end of the pipe
@@ -82,4 +82,9 @@ int main(int argc, char *argv[]) {
 
   sclose(sockfd);
   return EXIT_SUCCESS;
+}
+
+void send_register(int fd) {
+  int msg_type = REGISTRATION;
+  swrite(fd, &msg_type, sizeof(int));
 }
