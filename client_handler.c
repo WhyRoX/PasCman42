@@ -34,22 +34,23 @@ int main(int argc, char *argv[]) {
   enum Direction key_press;
   while (sread(PLAYER_SOCKET_FD, &key_press, sizeof(int)) > 0) {
     // read the key press
+    printf("ok bro\n");
     printf("Key pressed by player %d: %d\n", player_no, key_press);
 
     // lock semaphore
-    printf("Trying to lock semaphore");
+    printf("Trying to lock semaphore\n");
     sem_down0(sem_id);
-    printf("Locked semaphore");
+    printf("Locked semaphore\n");
     // send the key press to the server
     if (process_user_command(state, player_it, key_press,
                              WRITE_PIPE_TO_BROADCAST_FD)) {
       printf("Fin du jeu !\n");
       // GAME FINISH
     }
-    printf("Trying to unlock semaphore");
+    printf("Trying to unlock semaphore\n");
     // unlock semaphore
     sem_up0(sem_id);
-    printf("Unlocked semaphore");
+    printf("Unlocked semaphore\n");
   }
   return EXIT_SUCCESS;
 }
