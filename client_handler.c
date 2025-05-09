@@ -7,6 +7,8 @@
 #include <stdlib.h>
 int main(int argc, char *argv[]) {
 
+  // do nothing is SIGINT is received
+  signal(SIGINT, SIG_IGN);
   if (argv == NULL || argc != 2) {
     fprintf(stderr, "Usage: %s\n", argv[0]);
     return EXIT_FAILURE;
@@ -44,6 +46,8 @@ int main(int argc, char *argv[]) {
     if (process_user_command(state, player_it, key_press,
                              WRITE_PIPE_TO_BROADCAST_FD)) {
       printf("Fin du jeu !\n");
+      sem_up0(sem_id);
+      return EXIT_SUCCESS;
       // GAME FINISH
     }
     printf("Trying to unlock semaphore\n");

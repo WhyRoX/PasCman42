@@ -64,7 +64,7 @@ int main(int argc, char *argv[]) {
   int buffer[4];
   printf("Reading from GUI...\n");
   while (1) {
-    ssize_t bytesRead = sread(pipefd[0], buffer, sizeof(buffer));
+    int bytesRead = sread(pipefd[0], buffer, sizeof(buffer));
     if (bytesRead <= 0) {
       break;
     }
