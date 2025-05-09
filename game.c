@@ -295,6 +295,7 @@ bool process_user_command(struct GameState *state, enum Item player,
   if (state->game_over) {
     enum Item winner = state->scores[0] > state->scores[1] ? PLAYER1 : PLAYER2;
     send_game_over(winner, fdbcast);
+    printf("Fin du jeu car la partie est déjà terminée\n");
     return true;
   }
 
@@ -306,6 +307,7 @@ bool process_user_command(struct GameState *state, enum Item player,
   if (next.x == other.x && next.y == other.y) {
     state->game_over = true;
     enum Item winner = state->scores[0] > state->scores[1] ? PLAYER1 : PLAYER2;
+    printf("Fin du jeu car les joueurs se sont croisés\n");
     send_game_over(winner, fdbcast);
     return true;
   }
@@ -350,6 +352,6 @@ bool process_user_command(struct GameState *state, enum Item player,
     enum Item winner = state->scores[0] > state->scores[1] ? PLAYER1 : PLAYER2;
     send_game_over(winner, fdbcast);
   }
-
+  printf("Player %d moved to (%d, %d)\n", player, next.x, next.y);
   return state->game_over;
 }

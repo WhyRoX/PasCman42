@@ -1,5 +1,6 @@
 #include <errno.h>
 #include <signal.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/fcntl.h>
@@ -23,10 +24,10 @@
 #define TIMEOUT 30
 
 int child_handler(void);
-int init_ipc(struct GameState **state);
-int close_all(int fd, ...);
+int init_ipc(struct GameState **state, int *sem_id, int *shm_id);
 int handle_new_players(FileDescriptor *sockfd, struct GameState *state,
-                       FileDescriptor *map, FileDescriptor *players_fd);
+                       FileDescriptor *map, FileDescriptor *players_fd,
+                       pid_t *client_handlers_pid);
 
 struct GameState *state = NULL;
 FileDescriptor map = -1;
@@ -84,11 +85,15 @@ int main(int argc, char *argv[]) {
   /**
    * Create/init shm and sem
    * */
+  int sem_id;
+  int shm_id;
   struct GameState *state = NULL;
-  if (init_ipc(&state) != 0) {
+  if (init_ipc(&state, &sem_id, &shm_id) != 0) {
     fprintf(stderr, "Failed to initialize IPC\n");
     return EXIT_FAILURE;
   }
+
+  FileDescriptor sout = 1;
   // Create the pipe used by the broadcaster
   int pipefd[2];
   int ret = spipe(pipefd);
@@ -97,8 +102,8 @@ int main(int argc, char *argv[]) {
     exit(EXIT_FAILURE);
   }
 
-  FileDescriptor sout = 1;
   map = sopen(mapPath, O_RDONLY, 0);
+
   sockfd = ssocket();
   sbind(port, sockfd);
 
@@ -108,11 +113,8 @@ int main(int argc, char *argv[]) {
   // Set the signal handler for SIGINT
   signal(SIGINT, sigint_handler);
 
-  // This is the beginning of the game, so we wait the players,
-  // We set an alarm to 30 seconds to stop the game if no players are
-  // connected
+  // Set the signal handler for SIGALRM
   signal(SIGALRM, sigalrm_handler);
-  alarm(TIMEOUT);
 
   //** Beginning of the game loop
   printf("Server listening on port %d\n", port);
@@ -121,9 +123,15 @@ int main(int argc, char *argv[]) {
   printf("Waiting for players...\n");
 
   while (1) {
+    // This is the beginning of the game, so we wait the players,
+    // We set an alarm to 30 seconds to stop the game if no players are
+    // connected
+    alarm(TIMEOUT);
+
+    pid_t *client_handlers = malloc(NB_PLAYERS * sizeof(pid_t));
     FileDescriptor *players_fd = smalloc(NB_PLAYERS * sizeof(FileDescriptor));
     int handle_players_value =
-        handle_new_players(&sockfd, state, &map, players_fd);
+        handle_new_players(&sockfd, state, &map, players_fd, client_handlers);
     if (handle_players_value != 0) {
       if (handle_players_value == EXIT_FAILURE) {
         printf("Failed to handle new players\n");
@@ -139,10 +147,12 @@ int main(int argc, char *argv[]) {
       send_registered(i + 1, players_fd[i]);
     }
     // End of the loop, all players are connected
+
     int broadcastId = sfork();
     if (broadcastId == 0) {
       // Redirect stdout to the broadcaster
       sdup2(pipefd[0], WRITE_PIPE_TO_BROADCAST_FD);
+      sclose(pipefd[0]);
       for (int i = 0; i < NB_PLAYERS; i++) {
         sdup2(players_fd[i], PLAYERS_RANGE_FD + i);
         sclose(players_fd[i]);
@@ -166,12 +176,22 @@ int main(int argc, char *argv[]) {
       waitId = swaitpid(-1, &wstatus, 0);
     } while (waitId == -1 && errno == EINTR);
     if (waitId == -1) {
-      if (errno == EINTR) {
-        // The wait was interrupted by a signal, ignore it and continue
-        continue;
-      }
       perror("Failed to wait for child process");
       exit(EXIT_FAILURE);
+    }
+    if (waitId == broadcastId) {
+      printf("The broadcaster process %d finished with status %d\n", waitId,
+             wstatus);
+      broadcastId = -1;
+    } else {
+      printf("The client handler process %d finished with status %d\n", waitId,
+             wstatus);
+      for (int i = 0; i < NB_PLAYERS; i++) {
+        if (client_handlers[i] == waitId) {
+          client_handlers[i] = -1;
+          break;
+        }
+      }
     }
     printf("One of the child process %d finished with status %d\n", waitId,
            wstatus);
@@ -181,15 +201,29 @@ int main(int argc, char *argv[]) {
     for (int i = 0; i < NB_PLAYERS; i++) {
       sclose(players_fd[i]);
     }
-    // Reset the game state
+    free(players_fd);
+
+    // sclose(pipefd[0]);
+    // sclose(pipefd[1]);
+    for (int i = 0; i < NB_PLAYERS; i++) {
+      if (client_handlers[i] != -1) {
+        kill(client_handlers[i], SIGTERM);
+      }
+    }
+    free(client_handlers);
+    // close the program broadcaster
+    if (broadcastId != -1) {
+      skill(broadcastId, SIGTERM);
+    }
+
+    //  Reset the game state
+    sem_down0(sem_id);
     reset_gamestate(state);
+    sem_up0(sem_id);
 
     // Close the broadcast
-    sclose(pipefd[0]);
-    sclose(pipefd[1]);
-
-    // close the program broadcaster
-    skill(broadcastId, SIGTERM);
+    // sclose(pipefd[0]);
+    // sclose(pipefd[1]);
 
     // Check if the CTRL-C has been called before
     if (sigint_received) {
@@ -205,25 +239,26 @@ int main(int argc, char *argv[]) {
 
 int child_handler(void) { return 0; }
 
-int init_ipc(struct GameState **state) {
+int init_ipc(struct GameState **state, int *sem_id, int *shm_id) {
   // Create the shared memory segment
-  int sem_id = sem_create(SEM_KEY, 1, PERM, 1);
-  if (sem_id < 0) {
+  *sem_id = sem_create(SEM_KEY, 1, PERM, 1);
+  if (*sem_id < 0) {
     perror("Failed to create semaphore");
     return EXIT_FAILURE;
   }
 
-  int shm_id = sshmget(SHM_KEY, sizeof(struct GameState), IPC_CREAT | PERM);
-  if (shm_id < 0) {
+  *shm_id = sshmget(SHM_KEY, sizeof(struct GameState), IPC_CREAT | PERM);
+  if (*shm_id < 0) {
     perror("Failed to get shared memory");
     return EXIT_FAILURE;
   }
-  *state = sshmat(shm_id);
+  *state = sshmat(*shm_id);
   return 0;
 }
 
 int handle_new_players(FileDescriptor *sockfd, struct GameState *state,
-                       FileDescriptor *map, FileDescriptor *players_fd) {
+                       FileDescriptor *map, FileDescriptor *players_fd,
+                       pid_t *client_handlers_pid) {
   for (int i = 0; i < NB_PLAYERS; i++) {
     printf("Waiting for player %d...\n", i + 1);
     FileDescriptor player = saccept(*sockfd);
@@ -249,9 +284,8 @@ int handle_new_players(FileDescriptor *sockfd, struct GameState *state,
 
     players_fd[i] = player;
     // create a client_handler for the player in this loop
-    int childId = sfork();
-    if (childId == 0) {
-      // Im gonna sexec(client_handler) but how can I give the sockfd to it ?
+    client_handlers_pid[i] = sfork();
+    if (client_handlers_pid[i] == 0) {
       sdup2(player, PLAYER_SOCKET_FD);
       sclose(player);
       sclose(*sockfd);
