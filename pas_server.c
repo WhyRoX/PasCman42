@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <sys/fcntl.h>
 #include <sys/ipc.h>
+#include <sys/socket.h>
 #include <unistd.h>
 
 #include "common_fd.h"
@@ -147,6 +148,12 @@ int main(int argc, char *argv[]) {
   map = sopen(mapPath, O_RDONLY, 0);
 
   sockfd = ssocket();
+  int opt = 1;
+  if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0) {
+    perror("setsockopt");
+    close(sockfd);
+    exit(EXIT_FAILURE);
+  }
   if (sbind(port, sockfd) != 0) {
     perror("Failed to bind socket");
     return EXIT_FAILURE;
@@ -175,6 +182,7 @@ int main(int argc, char *argv[]) {
     // We set an alarm to 30 seconds to stop the game if no players are
     // connected
     alarm(TIMEOUT);
+    player_count = 0;
 
     int handle_players_value =
         handle_new_players(&sockfd, state, &map, players_fd, client_handlers);
@@ -256,6 +264,7 @@ int main(int argc, char *argv[]) {
       if (client_handlers[i] != -1) {
         printf("Killing the player %d client handler %d\n", i + 1,
                client_handlers[i]);
+        skill(client_handlers[i], SIGTERM);
 
         printf("Waiting for the player %d client handler %d to finish\n", i + 1,
                client_handlers[i]);

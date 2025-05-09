@@ -7,10 +7,18 @@
 #include <stdlib.h>
 
 #define QUIT_VALUE -1
+
+void sigterm_handler(int signum) {
+  printf("\nSIGTERM received on client handler...\n");
+  // Cleanup resources
+  sclose(PLAYER_SOCKET_FD);
+  exit(EXIT_SUCCESS);
+}
 int main(int argc, char *argv[]) {
 
   // do nothing is SIGINT is received
   signal(SIGINT, SIG_IGN);
+  signal(SIGTERM, sigterm_handler);
   if (argv == NULL || argc != 2) {
     fprintf(stderr, "Usage: %s\n", argv[0]);
     return EXIT_FAILURE;
