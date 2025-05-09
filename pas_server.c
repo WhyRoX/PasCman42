@@ -184,6 +184,7 @@ int main(int argc, char *argv[]) {
   }
   sclose(map);
   sclose(sockfd);
+  sshmdt(state);
   return EXIT_SUCCESS;
 }
 
