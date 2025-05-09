@@ -461,4 +461,3 @@ int spoll(struct pollfd *fds, nfds_t nfds, int timeout);
 int get_readable (const int* fds, const bool* fds_invalid, int nb);
 
 #endif  // _UTILS_H_
-                                                                           
