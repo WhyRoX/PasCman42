@@ -16,9 +16,6 @@
 #include "utils_v3.h"
 
 #define PERM 0666
-// This is the code when a function has failed but the reason is minor and
-// the game loop restart
-#define GAME_LOOP_RESTART 3
 // If you want to enable the CTRL-C during the game loop, set this to true
 #define FORCE_GAME_STOP false
 // Timeout in seconds for the game loop used in a Alarm signal handler
@@ -43,7 +40,7 @@ int client_handler_count = 0;
 int shm_id = -1;
 int sem_id = -1;
 
-void cleanup() {
+void cleanup(void) {
   printf("Stopping the game...\n");
 
   printf("- Freeing the state");
@@ -110,6 +107,7 @@ void sigalrm_handler(int signum) {
   printf("No players connected in %d seconds, stopping the game...\n", TIMEOUT);
   cleanup();
 }
+
 int main(int argc, char *argv[]) {
   if (argv == NULL || argc != 3) {
     fprintf(stderr, "Usage: %s <port> <map>\n", argv[0]);
@@ -224,7 +222,6 @@ int main(int argc, char *argv[]) {
     // processes for which to wait. If pid is -1, the call waits for any child
     // process." in man waitpidhm_id
 
-    // pid_t waitId = swaitpid(-1, &wstatus, 0);
     pid_t waitId;
     do {
       waitId = swaitpid(-1, &wstatus, 0);
@@ -355,7 +352,7 @@ int handle_new_players(FileDescriptor *sockfd, struct GameState *state,
       sclose(player);
       sclose(*sockfd);
 
-      // exec the client client_handler and replace this child process by
+      // exec the client client_handler and replace this child process by it
       char player_no[12];
       sprintf(player_no, "%d", i + 1);
       int exec = sexecl(CLIENT_HANDLER_PATH, CLIENT_HANDLER_PATH, player_no,

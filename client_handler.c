@@ -6,8 +6,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define QUIT_VALUE -1
-
 void sigterm_handler(int signum) {
   printf("\nSIGTERM received on client handler...\n");
   // Cleanup resources

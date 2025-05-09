@@ -2,7 +2,6 @@
 #include "pascman.h"
 #include "pm_exec_paths.h"
 #include "utils_v3.h"
-#include <asm-generic/errno-base.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
@@ -11,7 +10,6 @@
 
 #define HOST "localhost"
 #define TEST_ARG "-test"
-#define DEF_BUFFER_DIR_MAX 256
 
 pid_t server_pid;
 pid_t *clients_pids;
@@ -224,10 +222,10 @@ enum Direction read_command(FileDescriptor *file_fd, long *cursor) {
     read_bytes = sread(*file_fd, &c, sizeof(char));
     if (read_bytes == 0) {
       printf("End of file reached\n");
-      return -2; // Fin de fichier
+      return -2;
     } else if (read_bytes != sizeof(char)) {
       perror("Read error");
-      return -1; // Erreur de lecture
+      return -1;
     }
 
     printf("Read command: %c\n", c);
@@ -247,8 +245,7 @@ enum Direction read_command(FileDescriptor *file_fd, long *cursor) {
       return UP;
     case '\n':
     default:
-      // Incrémente et continue la boucle pour sauter les caractères non
-      // pertinents
+      // Ignore new line and other characters
       (*cursor)++;
       break;
     }

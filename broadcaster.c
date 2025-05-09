@@ -7,7 +7,7 @@
 
 int main(int argc, char *argv[]) {
 
-  // do nothing is SIGINT is received
+  // do nothing if SIGINT is received
   signal(SIGINT, SIG_IGN);
 
   printf("Running broadcaster\n");

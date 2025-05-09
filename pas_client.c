@@ -59,7 +59,6 @@ int main(int argc, char *argv[]) {
     printf("Redirecting sockfd to stdin...\n");
     sdup2(sockfd, sysin);
     sclose(sockfd);
-    // ret = sclose(pipefd[1]);
     sexecl(PAS_CMAN_IPL_PATH, PAS_CMAN_IPL_PATH, NULL);
     perror("Failed to exec pas-cman-ipl");
     exit(EXIT_FAILURE);
@@ -75,35 +74,12 @@ int main(int argc, char *argv[]) {
     fd = pipefd[0];
   }
 
-  // random to 100
-  long random_val = random() % 100;
   while (1) {
     int bytesRead = sread(fd, buffer, sizeof(buffer));
     if (bytesRead <= 0) {
       break;
     }
-    printf("Read %d bytes from GUI\n", bytesRead);
     int key_press = buffer[0];
-    printf("Key press: %d\n", key_press);
-    printf("[joueur %ld] ", random_val);
-    switch (key_press) {
-    case UP:
-      printf("UP\n");
-      break;
-    case DOWN:
-      printf("DOWN\n");
-      break;
-    case LEFT:
-      printf("LEFT\n");
-      break;
-    case RIGHT:
-      printf("RIGHT\n");
-      break;
-    default:
-      printf("Unknown key press: %d\n", key_press);
-      break;
-    };
-
     int bytesWrite = swrite(sockfd, &key_press, sizeof(int));
     if (bytesWrite <= 0) {
       printf("Failed to write to socket\n");
