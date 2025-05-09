@@ -214,35 +214,44 @@ int client_run(char *port, FileDescriptor *pipefd) {
 }
 
 enum Direction read_command(FileDescriptor *file_fd, long *cursor) {
-  char c = '\0';
-  lseek(*file_fd, *cursor, SEEK_SET);
-  printf("Reading command at cursor %ld\n", *cursor);
-  ssize_t read_bytes = sread(*file_fd, &c, sizeof(char));
-  if (read_bytes == 0) {
-    printf("End of file reached\n");
-    return -2; // End of file
-  } else if (read_bytes != sizeof(char)) {
-    perror("Read error");
-    return -1; // Error reading
-  }
+  char c;
+  ssize_t read_bytes;
 
-  (*cursor)++;
+  while (1) {
+    lseek(*file_fd, *cursor, SEEK_SET);
+    printf("Reading command at cursor %ld\n", *cursor);
 
-  switch (c) {
-  case 'v':
-    return DOWN;
-  case '>':
-    return RIGHT;
-  case '<':
-    return LEFT;
-  case '^':
-    return UP;
-  case '\n':
-    (*cursor)++;
-    return read_command(file_fd, cursor);
-  default:
-    (*cursor)++;
-    return read_command(file_fd, cursor);
+    read_bytes = sread(*file_fd, &c, sizeof(char));
+    if (read_bytes == 0) {
+      printf("End of file reached\n");
+      return -2; // Fin de fichier
+    } else if (read_bytes != sizeof(char)) {
+      perror("Read error");
+      return -1; // Erreur de lecture
+    }
+
+    printf("Read command: %c\n", c);
+
+    switch (c) {
+    case 'v':
+      (*cursor)++;
+      return DOWN;
+    case '>':
+      (*cursor)++;
+      return RIGHT;
+    case '<':
+      (*cursor)++;
+      return LEFT;
+    case '^':
+      (*cursor)++;
+      return UP;
+    case '\n':
+    default:
+      // Incrémente et continue la boucle pour sauter les caractères non
+      // pertinents
+      (*cursor)++;
+      break;
+    }
   }
 }
 int send_read_instruction(FileDescriptor *file_fd, FileDescriptor *pipe,

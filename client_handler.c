@@ -42,6 +42,7 @@ int main(int argc, char *argv[]) {
   // read the fd of the socket
   enum Direction key_press;
   while (sread(PLAYER_SOCKET_FD, &key_press, sizeof(int)) > 0) {
+    printf("Received command %d from player %d\n", key_press, player_no);
     // lock semaphore
     sem_down0(sem_id);
     if (process_user_command(state, player_it, key_press,
