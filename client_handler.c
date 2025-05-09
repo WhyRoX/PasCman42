@@ -5,6 +5,8 @@
 #include "utils_v3.h"
 #include <stdio.h>
 #include <stdlib.h>
+
+#define QUIT_VALUE -1
 int main(int argc, char *argv[]) {
 
   // do nothing is SIGINT is received
@@ -29,31 +31,22 @@ int main(int argc, char *argv[]) {
   int sem_id = sem_get(SEM_KEY, 1);
   int shm_id = sshmget(SHM_KEY, sizeof(struct GameState), 0);
   struct GameState *state = sshmat(shm_id);
-
-  printf("Yes I'm a client handler of the player %d!\n", player_no);
-
   // read the fd of the socket
   enum Direction key_press;
   while (sread(PLAYER_SOCKET_FD, &key_press, sizeof(int)) > 0) {
-    // read the key press
-    printf("Key pressed by player %d: %d\n", player_no, key_press);
-
     // lock semaphore
-    printf("Trying to lock semaphore\n");
     sem_down0(sem_id);
-    printf("Locked semaphore\n");
-    // send the key press to the server
     if (process_user_command(state, player_it, key_press,
                              WRITE_PIPE_TO_BROADCAST_FD)) {
-      printf("Fin du jeu !\n");
+      // GAME FINISH
+      printf("Detection of the end of the game !\n");
       sem_up0(sem_id);
       return EXIT_SUCCESS;
-      // GAME FINISH
     }
-    printf("Trying to unlock semaphore\n");
-    // unlock semaphore
     sem_up0(sem_id);
-    printf("Unlocked semaphore\n");
   }
+  printf("The client handler is closing now.");
+  // close the socket
+  sclose(PLAYER_SOCKET_FD);
   return EXIT_SUCCESS;
 }

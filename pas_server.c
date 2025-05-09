@@ -23,6 +23,8 @@
 // Timeout in seconds for the game loop used in a Alarm signal handler
 #define TIMEOUT 30
 
+#define DEBUG false
+
 int child_handler(void);
 int init_ipc(struct GameState **state, int *sem_id, int *shm_id);
 int handle_new_players(FileDescriptor *sockfd, struct GameState *state,
@@ -33,27 +35,69 @@ struct GameState *state = NULL;
 FileDescriptor map = -1;
 FileDescriptor sockfd = -1;
 bool sigint_received = false;
+pid_t *client_handlers = NULL;
+FileDescriptor *players_fd = NULL;
+int player_count = 0;
+int client_handler_count = 0;
+int shm_id = -1;
+int sem_id = -1;
 
 void cleanup() {
   printf("Stopping the game...\n");
+
+  printf("- Freeing the state");
   if (state != NULL) {
     free(state);
   }
+
+  printf("- Closing the map...\n");
   if (map != -1) {
     sclose(map);
   }
 
+  printf("- Deleting the shared memory...\n");
+  // shm delete
+  if (shm_id != -1) {
+    sshmdelete(shm_id);
+  }
+
+  printf("- Deleting the semaphore...\n");
+  // sem delete
+  if (sem_id != -1) {
+    sem_delete(sem_id);
+  }
+
+  printf("- Closing the socket...\n");
   if (sockfd != -1) {
     sclose(sockfd);
   }
+
+  printf("- Closing the player files descriptors...\n");
+  if (players_fd != NULL) {
+    for (int i = 0; i < player_count; i++) {
+      if (players_fd[i] != -1) {
+        printf("Closing player %d fd...\n", i);
+        sclose(players_fd[i]);
+      }
+    }
+    free(players_fd);
+  }
+
+  printf("- Freeing the client handlers pid list...\n");
+  if (client_handlers != NULL) {
+    free(client_handlers);
+  }
+
+  printf("Ressources has been cleaned up\n");
+
   exit(EXIT_SUCCESS);
 }
 
 void sigint_handler(int signum) {
   printf("\nSIGINT received...)\n");
   if ((state != NULL && state->game_over == true) || FORCE_GAME_STOP) {
-    printf("Stopping the game...\n");
     cleanup();
+    return;
   }
   printf("The game is still running, please wait...\n");
   printf("It will be stopped at the end of the game loop...\n");
@@ -85,8 +129,6 @@ int main(int argc, char *argv[]) {
   /**
    * Create/init shm and sem
    * */
-  int sem_id;
-  int shm_id;
   struct GameState *state = NULL;
   if (init_ipc(&state, &sem_id, &shm_id) != 0) {
     fprintf(stderr, "Failed to initialize IPC\n");
@@ -99,13 +141,16 @@ int main(int argc, char *argv[]) {
   int ret = spipe(pipefd);
   if (ret < 0) {
     perror("Failed to create pipe");
-    exit(EXIT_FAILURE);
+    return EXIT_FAILURE;
   }
 
   map = sopen(mapPath, O_RDONLY, 0);
 
   sockfd = ssocket();
-  sbind(port, sockfd);
+  if (sbind(port, sockfd) != 0) {
+    perror("Failed to bind socket");
+    return EXIT_FAILURE;
+  }
 
   // The BACKLOG is the maximum number of pending connections
   slisten(sockfd, NB_PLAYERS);
@@ -122,14 +167,15 @@ int main(int argc, char *argv[]) {
   printf("The players have %d seconds to connect\n", TIMEOUT);
   printf("Waiting for players...\n");
 
+  client_handlers = smalloc(NB_PLAYERS * sizeof(pid_t));
+  players_fd = smalloc(NB_PLAYERS * sizeof(FileDescriptor));
+
   while (1) {
     // This is the beginning of the game, so we wait the players,
     // We set an alarm to 30 seconds to stop the game if no players are
     // connected
     alarm(TIMEOUT);
 
-    pid_t *client_handlers = malloc(NB_PLAYERS * sizeof(pid_t));
-    FileDescriptor *players_fd = smalloc(NB_PLAYERS * sizeof(FileDescriptor));
     int handle_players_value =
         handle_new_players(&sockfd, state, &map, players_fd, client_handlers);
     if (handle_players_value != 0) {
@@ -180,50 +226,58 @@ int main(int argc, char *argv[]) {
       exit(EXIT_FAILURE);
     }
     if (waitId == broadcastId) {
-      printf("The broadcaster process %d finished with status %d\n", waitId,
-             wstatus);
+      if (DEBUG) {
+        printf("The broadcaster process %d finished with status %d\n", waitId,
+               wstatus);
+      }
       broadcastId = -1;
     } else {
-      printf("The client handler process %d finished with status %d\n", waitId,
-             wstatus);
       for (int i = 0; i < NB_PLAYERS; i++) {
         if (client_handlers[i] == waitId) {
           client_handlers[i] = -1;
+          if (DEBUG) {
+            printf("The client handler process %d of player %d finished with "
+                   "status %d\n",
+                   waitId, i + 1, wstatus);
+          }
           break;
         }
       }
     }
-    printf("One of the child process %d finished with status %d\n", waitId,
-           wstatus);
+    if (DEBUG) {
+      printf("One of the child process %d finished with status %d\n", waitId,
+             wstatus);
+    }
     printf("Restarting the game loop...\n");
 
-    // Make sure to close the players_fd
     for (int i = 0; i < NB_PLAYERS; i++) {
       sclose(players_fd[i]);
-    }
-    free(players_fd);
-
-    // sclose(pipefd[0]);
-    // sclose(pipefd[1]);
-    for (int i = 0; i < NB_PLAYERS; i++) {
+      players_fd[i] = -1;
       if (client_handlers[i] != -1) {
-        kill(client_handlers[i], SIGTERM);
+        printf("Killing the player %d client handler %d\n", i + 1,
+               client_handlers[i]);
+
+        printf("Waiting for the player %d client handler %d to finish\n", i + 1,
+               client_handlers[i]);
+        // Wait for the client handler to finish
+        int wait_client_handler = swaitpid(client_handlers[i], &wstatus, 0);
+        printf("The client handler %d of player %d finished with status %d\n",
+               wait_client_handler, i + 1, wstatus);
       }
     }
-    free(client_handlers);
-    // close the program broadcaster
     if (broadcastId != -1) {
       skill(broadcastId, SIGTERM);
+      printf("Waiting for the broadcaster process %d to finish\n", broadcastId);
+      // Wait for the broadcaster to finish
+      int wait_broadcaster = swaitpid(broadcastId, &wstatus, 0);
+      printf("The broadcaster process %d finished with status %d\n",
+             wait_broadcaster, wstatus);
+      broadcastId = -1;
     }
-
     //  Reset the game state
     sem_down0(sem_id);
     reset_gamestate(state);
     sem_up0(sem_id);
-
-    // Close the broadcast
-    // sclose(pipefd[0]);
-    // sclose(pipefd[1]);
 
     // Check if the CTRL-C has been called before
     if (sigint_received) {
@@ -233,6 +287,8 @@ int main(int argc, char *argv[]) {
   }
   sclose(map);
   sclose(sockfd);
+  perror("The while loop has been breaked\n");
+  cleanup();
   // Should never reach here
   return EXIT_FAILURE;
 }
@@ -270,7 +326,8 @@ int handle_new_players(FileDescriptor *sockfd, struct GameState *state,
       sclose(player);
       continue;
     }
-
+    players_fd[i] = player;
+    player_count++;
     printf("Player %d connected\n", i + 1);
     load_map(*map, player, state);
     // We need to set the cursor to the beginning of the file after reading
@@ -282,7 +339,6 @@ int handle_new_players(FileDescriptor *sockfd, struct GameState *state,
       return EXIT_FAILURE;
     }
 
-    players_fd[i] = player;
     // create a client_handler for the player in this loop
     client_handlers_pid[i] = sfork();
     if (client_handlers_pid[i] == 0) {
@@ -300,6 +356,7 @@ int handle_new_players(FileDescriptor *sockfd, struct GameState *state,
         return EXIT_FAILURE;
       }
     }
+    client_handler_count++;
   }
   return 0;
 }

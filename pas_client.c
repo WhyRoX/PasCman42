@@ -73,7 +73,7 @@ int main(int argc, char *argv[]) {
     }
     printf("\n");
     int key_press = buffer[0];
-    ssize_t bytesWrite = swrite(sockfd, &key_press, sizeof(int));
+    int bytesWrite = swrite(sockfd, &key_press, sizeof(int));
     if (bytesWrite <= 0) {
       printf("Failed to write to socket\n");
       break;

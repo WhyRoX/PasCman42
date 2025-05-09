@@ -21,7 +21,6 @@ int main(int argc, char *argv[]) {
       break;
     }
     // Process the data read from the pipe
-    printf("Received data: %d\n", buffer.movement.id);
     for (int i = 0; i < NB_PLAYERS; i++) {
       int player_fd = PLAYERS_RANGE_FD + i;
       ssize_t bytes_written = swrite(player_fd, (void *)&buffer, bytes_read);
@@ -30,6 +29,14 @@ int main(int argc, char *argv[]) {
         break;
       }
     }
+
+    if (buffer.msgt == GAME_OVER) {
+      break;
+    }
   }
+
+  printf("Exiting broadcaster\n");
+  // Close the pipe
+  sclose(WRITE_PIPE_TO_BROADCAST_FD);
   return EXIT_SUCCESS;
 }
