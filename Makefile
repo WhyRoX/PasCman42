@@ -2,13 +2,7 @@ CC=gcc
 
 CFLAGS=-std=c17 -pedantic -Wall -Wvla -Werror  -Wno-unused-variable -Wno-unused-but-set-variable -D_DEFAULT_SOURCE -g
 
-all: exemple pas_server pas_client broadcaster client_handler pas_labo
-
-exemple: exemple.o game.o utils_v3.o
-	$(CC) $(CFLAGS) -o exemple exemple.o game.o utils_v3.o
-
-exemple.o: exemple.c
-	$(CC) $(CFLAGS) -c exemple.c
+all: pas_server pas_client broadcaster client_handler pas_labo
 
 pas_server: pas_server.o game.o utils_v3.o
 	$(CC) $(CFLAGS) -o pas_server pas_server.o game.o utils_v3.o
@@ -50,4 +44,4 @@ clean:
 	rm -rf *.o
 
 mrpropre: clean
-	rm -rf exemple pas_client pas_server broadcaster client_handler pas_labo
+	rm -rf pas_client pas_server broadcaster client_handler pas_labo
